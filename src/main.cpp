@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <PID_v1.h>
 #include <ServoTimer2.h>
+#include <SimpleCommandParser.h>
 
 #define SERVO_PIN 9
 #define ECHO_PIN 10
@@ -15,6 +16,7 @@ double pid_setpoint, pid_input, pid_output;
 
 //Specify the links and initial tuning parameters
 PID myPID(&pid_input, &pid_output, &pid_setpoint, 2, 5, 1, DIRECT);
+SimpleCommandParser commandParser(Serial, "serialCommandParser");
 ServoTimer2 servoRail;
 
 long get_distance() {
@@ -49,6 +51,16 @@ void serve_go_percentage(uint8_t percentage_up) {
   servoRail.write(map(percentage_up, 1, 100, SERVO_MIN_PWM, SERVO_MAX_PWM));
 }
 
+void cmd_servo_handler(SimpleCommandParser& commandParser) {
+    uint8_t servoto = atoi(commandParser.next());
+    serve_go_percentage(servoto);
+    commandParser.preferredResponseStream.println("received servo goto: " + String(servoto));
+}
+
+void cmd_dist_handler(SimpleCommandParser& commandParser) {
+    commandParser.preferredResponseStream.println(String(get_distance()));
+}
+
 void setup() {
   Serial.begin(9600);
 
@@ -63,16 +75,23 @@ void setup() {
   pid_input = get_distance();
   pid_setpoint = 12;
 
+  commandParser.addCommand("servo", cmd_servo_handler);
+  commandParser.addCommand("dist", cmd_dist_handler);
+
+get_distance();
+
   //turn the PID on
-  myPID.SetMode(AUTOMATIC);
+  //myPID.SetMode(AUTOMATIC);
 }
 
 void loop() {
+  commandParser.readSerial(Serial);
+
   //digitalWrite(LED_BUILTIN, HIGH);
 
-  pid_input = get_distance();
-  myPID.Compute();
+  //pid_input = get_distance();
+  //myPID.Compute();
 
-  Serial.println("pid_input: " + String(pid_input) + " pid_output: " + String(pid_output));
-  serve_go_percentage(pid_output);
+  //Serial.println("pid_input: " + String(pid_input) + " pid_output: " + String(pid_output));
+  //serve_go_percentage(pid_output);
 }
