@@ -1,24 +1,29 @@
-
 #include <Arduino.h>
 #include <PID_v1.h>
-#include <ServoTimer2.h>
+#include <Servo.h>
 #include <StreamCommandParser.h>
 
 #define SERVO_PIN 9
 #define ECHO_PIN 10
 #define TRIG_PIN 11
 
-#define SERVO_MIN_PWM 800
-#define SERVO_MAX_PWM 2100
+#define SERVO_MIN_PWM 1150 //actual min is around 800
+//1450 middle
+#define SERVO_MAX_PWM 1750 //actual min is around 2100
+
+#define SERVO_MIN_DEG 45 //actual min is around 0
+#define SERVO_MAX_DEG 120 //actual min is around 180
+
 
 //Define Variables we'll be connecting to
 double pid_setpoint, pid_input, pid_output;
 
 //Specify the links and initial tuning parameters
-double Kp=2, Ki=5, Kd=1;
+//double Kp=2, Ki=5, Kd=1;
+double Kp = 2, Ki = 5, Kd = 1;
 PID myPID(&pid_input, &pid_output, &pid_setpoint, Kp, Ki, Kd, DIRECT);
 StreamCommandParser commandParser(Serial, "serialCommandParser");
-ServoTimer2 servoRail;
+Servo servoRail;
 
 long get_distance() {
   long duration;
@@ -49,7 +54,9 @@ long get_distance() {
 }
 
 void serve_go(uint8_t move_amount) {
-  servoRail.write(map(move_amount, 0, 255, SERVO_MIN_PWM, SERVO_MAX_PWM));
+  servoRail.write(map(move_amount, 0, 255, SERVO_MIN_DEG, SERVO_MAX_DEG));
+
+  //servoRail.write(map(move_amount, 0, 255, SERVO_MIN_PWM, SERVO_MAX_PWM));
 }
 
 void cmd_servo_handler(StreamCommandParser& commandParser) {
@@ -60,6 +67,14 @@ void cmd_servo_handler(StreamCommandParser& commandParser) {
 
 void cmd_dist_handler(StreamCommandParser& commandParser) {
     commandParser.preferredResponseStream.println(String(get_distance()));
+}
+
+void cmd_stop_handler(StreamCommandParser& commandParser) {
+  myPID.SetMode(MANUAL);
+}
+
+void cmd_start_handler(StreamCommandParser& commandParser) {
+  myPID.SetMode(AUTOMATIC);
 }
 
 void setup() {
@@ -78,6 +93,8 @@ void setup() {
 
   commandParser.addCommand("servo", cmd_servo_handler);
   commandParser.addCommand("dist", cmd_dist_handler);
+  commandParser.addCommand("start", cmd_start_handler);
+  commandParser.addCommand("stop", cmd_stop_handler);
 
   //turn the PID on
   myPID.SetMode(AUTOMATIC);
@@ -88,13 +105,9 @@ static bool pid_changed = false;
 void loop() {
   commandParser.readSerial(Serial);
 
-  //digitalWrite(LED_BUILTIN, HIGH);
-
   pid_input = get_distance();
   pid_changed = myPID.Compute();
+  serve_go(pid_output);
 
-  Serial.println("pid_input: " + String(pid_input) + " pid_output: " + String(pid_output));
-  if (pid_changed) {
-    serve_go(pid_output);
-  }
+  // Serial.println("pid_input: " + String(pid_input) + " pid_output: " + String(pid_output));
 }
