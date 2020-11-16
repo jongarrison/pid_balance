@@ -7,9 +7,9 @@
 #define ECHO_PIN 10
 #define TRIG_PIN 11
 
-#define SERVO_MIN_PWM 1150 //actual min is around 800
+#define SERVO_MIN_PWM 1300 //actual min is around 800
 //1450 middle
-#define SERVO_MAX_PWM 1750 //actual min is around 2100
+#define SERVO_MAX_PWM 1600 //actual min is around 2100
 
 #define SERVO_MIN_DEG 45 //actual min is around 0
 #define SERVO_MAX_DEG 120 //actual min is around 180
@@ -21,7 +21,7 @@ int version = 1;
 //Specify the links and initial tuning parameters
 //double Kp=2, Ki=5, Kd=1;
 double Kp = 2;
-double Ki = 5;
+double Ki = 3;
 double Kd = 1;
 PID myPID(&pid_input, &pid_output, &pid_setpoint, Kp, Ki, Kd, DIRECT);
 StreamCommandParser commandParser(Serial, "serialCommandParser");
@@ -47,7 +47,7 @@ long get_distance(bool raw) {
 
   if (raw == false) {
     if (distance > 1000) {
-      distance = 3;
+      distance = 4;
     } else if (distance > 24) {
       distance = 24;
     }
@@ -60,6 +60,10 @@ void serve_go(uint8_t move_amount) {
   //servoRail.write(map(move_amount, 0, 255, SERVO_MIN_PWM, SERVO_MAX_PWM));
 }
 
+void cmd_help_handler(StreamCommandParser& commandParser) {
+  commandParser.printAvailableCommands(Serial);
+}
+
 void cmd_servo_handler(StreamCommandParser& commandParser) {
     uint8_t servoto = atoi(commandParser.next());
     serve_go(servoto);
@@ -67,8 +71,7 @@ void cmd_servo_handler(StreamCommandParser& commandParser) {
 }
 
 void cmd_dist_handler(StreamCommandParser& commandParser) {
-    commandParser.preferredResponseStream.println("Distance: " + String(get_distance(false)));
-    commandParser.preferredResponseStream.println("Distance Raw: " + String(get_distance(true)));
+    commandParser.preferredResponseStream.println("Distance: " + String(get_distance(false) + " Raw: " + String(get_distance(true))));
 }
 
 void cmd_v_handler(StreamCommandParser& commandParser) {
@@ -78,17 +81,31 @@ void cmd_v_handler(StreamCommandParser& commandParser) {
 void cmd_stop_handler(StreamCommandParser& commandParser) {
   isPidEnabled = false;
   myPID.SetMode(MANUAL);
+  Serial.println("Stopped");
 }
 
 void cmd_start_handler(StreamCommandParser& commandParser) {
   isPidEnabled = true;
   myPID.SetMode(AUTOMATIC);
+  Serial.println("Started");
 }
 
 void cmd_set_handler(StreamCommandParser& commandParser) {
     uint8_t distto = atoi(commandParser.next());
     pid_setpoint = distto;
-    commandParser.preferredResponseStream.println("received pid_setpoint: " + String(distto));
+    commandParser.preferredResponseStream.println("Set pid_setpoint: " + String(distto));
+}
+
+void cmd_gpid_handler(StreamCommandParser& commandParser) {
+    commandParser.preferredResponseStream.println("Kp " + String(Kp) + " Ki " + String(Ki) + " Kd " + String(Kd));
+}
+
+void cmd_spid_handler(StreamCommandParser& commandParser) {
+    commandParser.preferredResponseStream.println("Current Kp: " + String(Kp) + " Ki: " + String(Ki) + " Kd: " + String(Kd));
+    Kp = atof(commandParser.next());
+    Ki = atof(commandParser.next());
+    Kd = atof(commandParser.next());
+    commandParser.preferredResponseStream.println("New Kp: " + String(Kp) + " Ki: " + String(Ki) + " Kd: " + String(Kd));
 }
 
 void setup() {
@@ -105,12 +122,16 @@ void setup() {
   pid_input = get_distance(false);
   pid_setpoint = 10;
 
+  //setup all the commands
   commandParser.addCommand("servo", cmd_servo_handler);
   commandParser.addCommand("dist", cmd_dist_handler);
   commandParser.addCommand("start", cmd_start_handler);
   commandParser.addCommand("stop", cmd_stop_handler);
   commandParser.addCommand("set", cmd_set_handler);
   commandParser.addCommand("v", cmd_v_handler);
+  commandParser.addCommand("gpid", cmd_gpid_handler);
+  commandParser.addCommand("spid", cmd_spid_handler);
+  commandParser.addCommand("help", cmd_help_handler);
 
   //turn the PID on
   myPID.SetMode(AUTOMATIC);
