@@ -7,9 +7,9 @@
 #define ECHO_PIN 10
 #define TRIG_PIN 11
 
-#define SERVO_MIN_PWM 1300 //actual min is around 800
+#define SERVO_MIN_PWM 1200 //actual min is around 800, 1300 pretty good
 //1450 middle
-#define SERVO_MAX_PWM 1600 //actual min is around 2100
+#define SERVO_MAX_PWM 1600 //actual min is around 2100, 1600 pretty good,
 
 #define SERVO_MIN_DEG 45 //actual min is around 0
 #define SERVO_MAX_DEG 120 //actual min is around 180
@@ -19,10 +19,9 @@
 double pid_setpoint, pid_input, pid_output;
 int version = 1;
 //Specify the links and initial tuning parameters
-//double Kp=2, Ki=5, Kd=1;
-double Kp = 2;
-double Ki = 3;
-double Kd = 1;
+double Kp = 0.2;
+double Ki = 0.3;
+double Kd = 0.1;
 PID myPID(&pid_input, &pid_output, &pid_setpoint, Kp, Ki, Kd, DIRECT);
 StreamCommandParser commandParser(Serial, "serialCommandParser");
 Servo servoRail;
@@ -71,7 +70,7 @@ void cmd_servo_handler(StreamCommandParser& commandParser) {
 }
 
 void cmd_dist_handler(StreamCommandParser& commandParser) {
-    commandParser.preferredResponseStream.println("Distance: " + String(get_distance(false) + " Raw: " + String(get_distance(true))));
+    commandParser.preferredResponseStream.println("Distance: " + String(get_distance(false)) + " Raw: " + String(get_distance(true)));
 }
 
 void cmd_v_handler(StreamCommandParser& commandParser) {
@@ -101,11 +100,11 @@ void cmd_gpid_handler(StreamCommandParser& commandParser) {
 }
 
 void cmd_spid_handler(StreamCommandParser& commandParser) {
-    commandParser.preferredResponseStream.println("Current Kp: " + String(Kp) + " Ki: " + String(Ki) + " Kd: " + String(Kd));
+    commandParser.preferredResponseStream.println("Current: spid " + String(Kp) + " " + String(Ki) + " " + String(Kd));
     Kp = atof(commandParser.next());
     Ki = atof(commandParser.next());
     Kd = atof(commandParser.next());
-    commandParser.preferredResponseStream.println("New Kp: " + String(Kp) + " Ki: " + String(Ki) + " Kd: " + String(Kd));
+    commandParser.preferredResponseStream.println("New: spid " + String(Kp) + " " + String(Ki) + " " + String(Kd));
 }
 
 void setup() {
