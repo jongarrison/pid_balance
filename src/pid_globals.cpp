@@ -3,6 +3,8 @@
 
 namespace pid_globals {
 
+    int version = 1;
+
     double pid_setpoint; 
     double pid_input; 
     double pid_output;
